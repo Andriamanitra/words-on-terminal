@@ -1,4 +1,4 @@
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from random import shuffle
@@ -17,7 +17,7 @@ class Word:
 class Game:
     letters: list[str] = field(default_factory=list)
     words: list[Word] = field(default_factory=list)
-    scores: defaultdict = field(default_factory=lambda: defaultdict(int))
+    scores: Counter = field(default_factory=Counter)
     active: bool = False
 
     def pick_random_word(self, min_length=5):

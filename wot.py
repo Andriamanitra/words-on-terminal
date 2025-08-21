@@ -5,7 +5,6 @@ import twitchbot
 from game import Game
 
 
-
 class RoundTimer:
     def __init__(self, round_duration_seconds=120.0):
         self.round_duration_seconds = round_duration_seconds
@@ -47,10 +46,8 @@ def render_end_round(game: Game):
     print(f"You managed to find {found}/{len(game.words)} words! Good job!")
     render(game)
     if game.scores:
-        leaderboard = list(game.scores.items())
-        leaderboard.sort(key=lambda p: p[1], reverse=True)
         print("\nLEADERBOARD:")
-        for rank, (player, score) in enumerate(leaderboard[:10], 1):
+        for rank, (player, score) in enumerate(game.scores.most_common(10), 1):
             print(f"{rank}. {player:12s} {score}")
     print()
 
