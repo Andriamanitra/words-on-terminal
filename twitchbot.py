@@ -113,7 +113,7 @@ class Bot:
     def join(self, channel_name: str):
         self.send(f"JOIN #{channel_name}")
 
-    def poll(self, timeout_seconds: float = 1.0) -> Iterator[Message]:
+    def poll(self, timeout_seconds: float = 1.0) -> Iterator[PrivMsg]:
         self.sock.settimeout(timeout_seconds)
         try:
             rcvd = self.sock.recv(4096)
@@ -123,7 +123,8 @@ class Bot:
             msg = Message.parse(line)
             if msg.command == "PING":
                 self.send(line.replace("PING", "PONG"))
-            yield msg
+            if isinstance(msg, PrivMsg):
+                yield msg
 
     def say(self, target: str, msg: str):
         self.send(f"PRIVMSG {target} :{msg}")

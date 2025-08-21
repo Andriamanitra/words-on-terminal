@@ -1,16 +1,22 @@
+from __future__ import annotations
+
+import shutil
+import sys
 import time
 from itertools import batched
 
+import terminal
 import twitchbot
+from cli import CommandLineOptions
 from game import Game
 
 
 class RoundTimer:
-    def __init__(self, round_duration_seconds=120.0):
+    def __init__(self, round_duration_seconds: float = 120.0) -> None:
         self.round_duration_seconds = round_duration_seconds
         self.start = time.time()
 
-    def reset(self):
+    def reset(self) -> None:
         self.start = time.time()
 
     def remaining_seconds(self) -> float:
@@ -23,12 +29,22 @@ class RoundTimer:
         return self.elapsed_seconds() >= self.round_duration_seconds
 
 
-def clear_terminal():
-    print(end="\x1b[2J\x1b[H")
+def render_title(options: CommandLineOptions, status: str) -> None:
+    if options.show_title:
+        print(f":: words on terminal :: {status} ::")
 
 
-def render(game: Game):
-    print("LETTERS:", " ".join(letter.upper() for letter in game.letters))
+def render(game: Game, time_remaining: float | None = None) -> None:
+    columns = shutil.get_terminal_size().columns // 26
+
+    letters = " ".join(letter.upper() for letter in game.letters)
+    letters = f" Letters:  {letters}"
+    if time_remaining is not None:
+        sep = "\n" if columns <= 1 else " " * (columns * 26 - 25 - len(letters))
+        print(letters, f"Time remaining: {time_remaining:.0f}s", sep=sep)
+    else:
+        print(letters)
+
     output_words = []
     for word in game.words:
         if word.guessed:
@@ -37,14 +53,15 @@ def render(game: Game):
             output_words.append(f"{word.letters.upper()}")
         else:
             output_words.append("".join("_" for _ in word.letters))
-    for outs in batched(output_words, 3):
-        print(" ", "   ".join(out.ljust(25) for out in outs))
+
+    for outs in batched(output_words, columns):
+        print(" ", "  ".join(out.ljust(24) for out in outs))
 
 
-def render_end_round(game: Game):
+def render_end_round(game: Game) -> None:
     found = sum(1 for word in game.words if word.guessed)
-    print(f"You managed to find {found}/{len(game.words)} words! Good job!")
     render(game)
+    print(f"You managed to find {found}/{len(game.words)} words! Good job!")
     if game.scores:
         print("\nLEADERBOARD:")
         for rank, (player, score) in enumerate(game.scores.most_common(10), 1):
@@ -52,77 +69,74 @@ def render_end_round(game: Game):
     print()
 
 
-def poll_guesses(bot, game):
-    for msg in bot.poll(timeout_seconds=1.0):
-        if isinstance(msg, twitchbot.PrivMsg):
-            # ts = datetime.datetime.now()
-            # print(f"{msg.channel:10s} [{ts:%H:%M:%S}] <{msg.sender}> {msg.msg}")
-            game.guess(msg.sender, msg.msg)
-
-
-def end_round(game: Game):
-    game.end_round()
-    clear_terminal()
-    render_end_round(game)
-
-
-def main():
-    channel = input("Which twitch.tv channel to connect to (leave empty to play locally)?\n> ")
-    local_game = False
-    if not channel:
-        print("No channel selected, playing locally!")
-        local_game = True
-    else:
-        bot = twitchbot.Bot()
-        bot.connect()
-        print("Connected!")
-        bot.join(channel)
-
-    time.sleep(1.0)
-    game = Game()
-    timer = RoundTimer(round_duration_seconds=120.0)
+def play(game: Game, options: CommandLineOptions, connection: twitchbot.Bot | None = None) -> None:
+    timer = RoundTimer(options.round_duration)
     game.pick_random_word()
+    if connection is None:
+        status = "playing locally"
+    else:
+        status = f"playing on https://twitch.tv/{options.channel}"
 
     while True:
-        clear_terminal()
-        print(f"TIME REMAINING: {timer.remaining_seconds():.0f}s")
-        render(game)
-        if local_game:
-            try:
-                guess = input("Your guess: ")
-            except (EOFError, KeyboardInterrupt):
-                end_round(game)
-                print("GG!")
-                return
-            else:
-                game.guess("You", guess)
+        terminal.clear()
+        render_title(options, status)
+        render(game, timer.remaining_seconds())
+        if connection is None:
+            guess = input("Your guess: ")
+            game.guess("You", guess)
         else:
-            try:
-                poll_guesses(bot, game)
-            except (EOFError, KeyboardInterrupt):
-                bot.disconnect()
-                end_round(game)
-                print("GG!")
-                return
-            except ConnectionError:
-                raise
-            except Exception:
-                print("An exception was raised, attempting to disconnect...")
-                bot.disconnect()
-                raise
+            for msg in connection.poll(timeout_seconds=1.0):
+                game.guess(msg.sender, msg.msg)
 
         if game.is_round_complete() or timer.expired():
-            end_round(game)
-            if local_game:
+            game.end_round()
+            terminal.clear()
+            render_title(options, status)
+            render_end_round(game)
+            if connection is None:
                 input("Press Enter to begin next round!")
             else:
-                print("Next round begins automatically in 10 seconds...")
-                time.sleep(10)
-                bot.poll(timeout_seconds=0.1)
+                delay = round(options.end_screen_duration)
+                print(f"Next round begins automatically in {delay} seconds...")
+                time.sleep(options.end_screen_duration)
+                connection.poll(timeout_seconds=0.1)
             game.pick_random_word()
             timer.reset()
-    print("Disconnected.")
+
+
+def main() -> int:
+    options = CommandLineOptions.parse(sys.argv[1:])
+    if options.channel:
+        if any(c != "_" and not c.isalnum() for c in options.channel):
+            url = f"https://twitch.tv/{options.channel}"
+            print(f"{url!r} is not a valid twitch channel!", file=sys.stderr)
+            return 11
+        connection = twitchbot.Bot()
+        connection.connect()
+        connection.join(options.channel)
+        terminal.hide_cursor()
+    else:
+        connection = None
+
+    game = Game()
+    try:
+        play(game, options, connection)
+    except ConnectionError as exc:
+        print(f"Disconnected due to {exc}", file=sys.stderr)
+        connection = None
+        return 21
+    except (EOFError, KeyboardInterrupt):
+        game.end_round()
+        terminal.clear()
+        render_title(options, "GAME OVER")
+        render_end_round(game)
+        print("GG!")
+    finally:
+        terminal.show_cursor()
+        if connection is not None:
+            connection.disconnect()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
