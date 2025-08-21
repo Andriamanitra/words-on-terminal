@@ -32,7 +32,7 @@ class Game:
         shuffle(self.letters)
         letter_counts = Counter(s)
         self.words = [Word(letters=word) for word in WORDLIST if Counter(word) <= letter_counts]
-        self.words.sort(key=lambda w: (-len(w.letters), w.letters), reverse=True)
+        self.words.sort(key=lambda w: (len(w.letters), w.letters))
         self.active = True
 
     def guess(self, player: str, guess: str):
