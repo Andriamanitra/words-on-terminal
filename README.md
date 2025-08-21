@@ -7,17 +7,23 @@ WOT is a word guessing game that you can play with twitch.tv chat
 
 You will need Python (3.12 or newer is required). There are no other dependencies!
 
-You can run the game using [uv](https://docs.astral.sh/uv/):
+Start by cloning the repository:
 ```
-uv run --python 3.13 -m wot
+git clone https://github.com/Andriamanitra/words-on-terminal
+cd words-on-terminal
+```
+
+You can then run the game using [uv](https://docs.astral.sh/uv/):
+```
+uv run -m wot --channel YOUR_TWITCH_CHANNEL
 ```
 or an existing Python installation on your system:
 ```
-python3 -m wot
+python3 -m wot --channel YOUR_TWITCH_CHANNEL
 ```
 
-When you run the game it will first ask for a twitch channel to connect to.
-After providing a channel name the game begins immediately and you can start guessing in Twitch chat.
-If you don't provide a channel name the game will ask for your guesses in the terminal instead.
+The game begins immediately when you run the command, and you can start guessing in Twitch chat.
+If you don't provide `--channel` argument the game will ask for your guesses in the terminal instead.
+Check `--help` for all supported options.
 
 Press Ctrl+c or Ctrl+d to quit.
