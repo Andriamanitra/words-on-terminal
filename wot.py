@@ -70,8 +70,21 @@ def render_end_round(game: Game) -> None:
 
 
 def play(game: Game, options: CommandLineOptions, connection: twitchbot.Bot | None = None) -> None:
+    def start_round() -> None:
+        timer.reset()
+        game.pick_random_word(
+            min_length=options.longest_word_length_minimum,
+            min_words=options.min_words,
+            max_words=options.max_words,
+        )
+
     timer = RoundTimer(options.round_duration)
-    game.pick_random_word()
+    if options.word:
+        game.set_word(options.word)
+        options.word = None
+    else:
+        start_round()
+
     if connection is None:
         status = "playing locally"
     else:
@@ -100,8 +113,7 @@ def play(game: Game, options: CommandLineOptions, connection: twitchbot.Bot | No
                 print(f"Next round begins automatically in {delay} seconds...")
                 time.sleep(options.end_screen_duration)
                 connection.poll(timeout_seconds=0.1)
-            game.pick_random_word()
-            timer.reset()
+            start_round()
 
 
 def main() -> int:
