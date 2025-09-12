@@ -48,7 +48,7 @@ def render(game: Game, time_remaining: float | None = None) -> None:
     output_words = []
     for word in game.words:
         if word.guessed:
-            output_words.append(f"{word.letters.upper()}  ({word.guesser})")
+            output_words.append(f"{word.letters.upper()}  ({word.guesser:.12s})")
         elif not game.active:
             output_words.append(f"{word.letters.upper()}")
         else:
