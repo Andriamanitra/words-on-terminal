@@ -48,7 +48,7 @@ def render(game: Game, time_remaining: float | None = None) -> None:
     output_words = []
     for word in game.words:
         if word.guessed:
-            output_words.append(f"{word.letters.upper()}  ({word.guesser:.12s})")
+            output_words.append(f"{word.letters.upper()}  ({truncate_username(word.guesser)})")
         elif not game.active:
             output_words.append(f"{word.letters.upper()}")
         else:
@@ -118,6 +118,25 @@ def play(game: Game, options: CommandLineOptions, connection: twitchbot.Bot | No
                 connection.poll(timeout_seconds=0.1)
             start_round()
 
+def truncate_username(username, max_length=12):
+    if len(username) <= max_length:
+        return username
+    
+    last_char = username[-1]
+    start_chars = 1
+    
+    while True:
+        omitted_count = len(username) - start_chars - 1
+        test_display = f"{username[:start_chars]}{omitted_count}{last_char}"
+        
+        if len(test_display) > max_length:
+            start_chars -= 1
+            omitted_count = len(username) - start_chars - 1
+            return f"{username[:start_chars]}{omitted_count}{last_char}"
+        elif omitted_count <= 0:
+            return username
+        else:
+            start_chars += 1
 
 def main() -> int:
     options = CommandLineOptions.parse(sys.argv[1:])
