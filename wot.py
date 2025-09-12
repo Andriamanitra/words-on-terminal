@@ -31,7 +31,7 @@ class RoundTimer:
 
 def render_title(options: CommandLineOptions, status: str) -> None:
     if options.show_title:
-        print(f":: words on terminal :: {status} ::")
+        print(f":: words on terminal :: {status} ::{terminal.ERASE_REST_OF_LINE}")
 
 
 def render(game: Game, time_remaining: float | None = None) -> None:
@@ -41,9 +41,9 @@ def render(game: Game, time_remaining: float | None = None) -> None:
     letters = f" Letters:  {letters}"
     if time_remaining is not None:
         sep = "\n" if columns <= 1 else " " * (columns * 26 - 25 - len(letters))
-        print(letters, f"Time remaining: {time_remaining:.0f}s", sep=sep)
+        print(letters, f"Time remaining: {time_remaining:.0f}s{terminal.ERASE_REST_OF_LINE}", sep=sep)
     else:
-        print(letters)
+        print(f"{letters}{terminal.ERASE_REST_OF_LINE}")
 
     output_words = []
     for word in game.words:
@@ -55,7 +55,8 @@ def render(game: Game, time_remaining: float | None = None) -> None:
             output_words.append("".join("_" for _ in word.letters))
 
     for outs in batched(output_words, columns):
-        print(" ", "  ".join(out.ljust(24) for out in outs))
+        joined_words = "  ".join(out.ljust(24) for out in outs)
+        print(f" {joined_words}{terminal.ERASE_REST_OF_LINE}")
 
 
 def render_end_round(game: Game) -> None:
@@ -77,6 +78,7 @@ def play(game: Game, options: CommandLineOptions, connection: twitchbot.Bot | No
             min_words=options.min_words,
             max_words=options.max_words,
         )
+        terminal.clear()
 
     timer = RoundTimer(options.round_duration)
     if options.word:
@@ -84,6 +86,7 @@ def play(game: Game, options: CommandLineOptions, connection: twitchbot.Bot | No
         options.word = None
     else:
         start_round()
+    terminal.clear()
 
     if connection is None:
         status = "playing locally"
@@ -91,7 +94,7 @@ def play(game: Game, options: CommandLineOptions, connection: twitchbot.Bot | No
         status = f"playing on https://twitch.tv/{options.channel}"
 
     while True:
-        terminal.clear()
+        terminal.move_cursor_home()
         render_title(options, status)
         render(game, timer.remaining_seconds())
         if connection is None:
