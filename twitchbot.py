@@ -94,6 +94,7 @@ class Bot:
         # authenticating (read-only, it can't send any messages)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.username = username
+        self.buffer = b""
 
     def connect(
             self,
@@ -119,8 +120,20 @@ class Bot:
             rcvd = self.sock.recv(4096)
         except TimeoutError:
             return
-        for line in rcvd.decode("utf-8").splitlines():
+
+        self.buffer += rcvd
+
+        lines = self.buffer.split(b'\r\n')
+        self.buffer = lines[-1]
+
+        for line in lines[:-1]:
+            line = line.decode("utf-8").strip()
+
+            if not line:
+                continue
+
             msg = Message.parse(line)
+
             if msg.command == "PING":
                 self.send(line.replace("PING", "PONG"))
             if isinstance(msg, PrivMsg):
@@ -135,3 +148,13 @@ class Bot:
     def disconnect(self):
         self.send("QUIT")
         self.sock.close()
+
+
+if __name__ == "__main__":
+    bot = Bot()
+    bot.connect()
+    channel = input("channel to connect to? ")
+    bot.join(channel)
+    while True:
+        for msg in bot.poll():
+            print(f"<{msg.sender}> {msg.msg!r}")
