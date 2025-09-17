@@ -121,22 +121,15 @@ def play(game: Game, options: CommandLineOptions, connection: twitchbot.Bot | No
 def truncate_username(username, max_length=12):
     if len(username) <= max_length:
         return username
-    
-    last_char = username[-1]
-    start_chars = 1
-    
-    while True:
-        omitted_count = len(username) - start_chars - 1
-        test_display = f"{username[:start_chars]}{omitted_count}{last_char}"
-        
-        if len(test_display) > max_length:
-            start_chars -= 1
-            omitted_count = len(username) - start_chars - 1
-            return f"{username[:start_chars]}{omitted_count}{last_char}"
-        elif omitted_count <= 0:
-            return username
-        else:
-            start_chars += 1
+    if max_length < 3:
+        return username[:max_length]
+    if max_length == 3 and len(username[1:-1]) > 9:
+        return f"{username[0]}{len(username) - 1}"
+    omitted_count = 1 + len(username) - max_length
+    if omitted_count > 9:
+        omitted_count += 1
+    i = max_length - 1 - len(str(omitted_count))
+    return f"{username[:i]}{omitted_count}{username[-1]}"
 
 def main() -> int:
     options = CommandLineOptions.parse(sys.argv[1:])
