@@ -118,6 +118,7 @@ def play(game: Game, options: CommandLineOptions, connection: twitchbot.Bot | No
                 connection.poll(timeout_seconds=0.1)
             start_round()
 
+
 def truncate_username(username, max_length=12):
     if len(username) <= max_length:
         return username
@@ -130,6 +131,7 @@ def truncate_username(username, max_length=12):
         omitted_count += 1
     i = max_length - 1 - len(str(omitted_count))
     return f"{username[:i]}{omitted_count}{username[-1]}"
+
 
 def main() -> int:
     options = CommandLineOptions.parse(sys.argv[1:])
